@@ -111,14 +111,17 @@ class NetworkHandler:
                     else:
                         to_remove_set.add(tuple(ap_lst[i]))
             final_lst = [element for element in ap_lst if tuple(element) not in to_remove_set]
-            for ap in ap_log:
+            for ap in ap_lst:
                 if ap[1] == final_lst[0][1]:
-                    ap.append(client[0])
+                    ap.append(client[1])
             client_log.append("Step 2: CLIENT CONNECT TO " + final_lst[0][1] + " WITH SIGNAL STRENGTH " +
                              str(self.calculate_rssi(client[2], client[3], final_lst[0][2], final_lst[0][3],
                              final_lst[0][6], final_lst[0][5])))
+            ap_log.append(f"STEP 2: {client[1]} CONNECT LOCATION {' '.join(client[2:9])}")
 
+            print(ap_lst)
             print(client_log)
+            print(ap_log)
 
         self.field_lst = field_lst
         self.ap_lst = ap_lst

@@ -1,7 +1,7 @@
-AP AP1 0 0 6 20 2.4/5 WiFi6 true true true 50 10 75
-AP AP2 100 100 6 20 5 WiFi7 false true false 50 60
-AP AP3 30 50 6 20 5 WiFi7 false true false 60 60
-AP AP4 40 50 6 20 5 WiFi7 false true false 40 60
+AP AP1 0 0 6 20 2.4/5 WiFi7 true true true 50 10 75
+AP AP2 100 100 6 20 2.4 WiFi6 false true false 50 60
+AP AP3 30 50 6 20 5 WiFi8 false true false 60 60
+AP AP4 40 50 6 20 5 WiFi6 false true false 40 60
 AP AP5 30 60 6 20 5 WiFi7 false true false 55 60
 CLIENT Client1 10 10 WiFi6 2.4/5 true true true 73
 MOVE Client1 10 9

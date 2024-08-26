@@ -14,6 +14,9 @@ class NetworkHandler:
         with open(filename, 'r') as file:
             # Create a list of lists of fields since APs may appear more than once.
             for line in file:
+                # Account for blank lines.
+                if len(line.split()) == 0:
+                    continue
                 field = line.rstrip('\n').split(' ')
                 field_lst.append(field)
 
@@ -33,95 +36,13 @@ class NetworkHandler:
         move_lst = []
         for lst in field_lst:
             if lst[0] == 'AP':
+                if len(lst) != 14:
+                    lst.append(' ')
                 ap_lst.append(lst)
             elif lst[0] == 'CLIENT':
                 client_lst.append(lst)
             elif lst[0] == 'MOVE':
                 move_lst.append(lst)
-
-        pref_channels = [1, 6, 11]
-        other_channels = [2, 3, 4, 5, 7, 8, 9, 10]
-
-        # Note: Multiple APs can have the same channel, as long as they do not overlap.
-        for i in range(0, len(ap_lst) - 1):
-            for j in range(i + 1, len(ap_lst)):
-                # Calculate the distance between first AP and the next.
-                distance = sqrt((int(ap_lst[j][2]) - int(ap_lst[i][2])) ** 2 +
-                                (int(ap_lst[j][3]) - int(ap_lst[i][3])) ** 2)
-                # If adding the coverage radii of both APs is > distance, there is overlap so change the channel.
-                if distance < (int(ap_lst[i][11]) + int(ap_lst[j][11])):
-                    # Check if the channels are the same.
-                    if ap_lst[i][4] == ap_lst[j][4]:
-                        # Change the first AP's channel to the highest possible channel in pref_channels.
-                        if len(pref_channels) > 0:
-                            ap_lst[i][4] = str(max(pref_channels))
-                            ac_log.append(f"1Step 1: AC REQUIRES {ap_lst[i][1]} TO CHANGE CHANNEL TO "
-                                          f"{max(pref_channels)}")
-                            pref_channels.remove(int(ap_lst[i][4]))
-                        else:
-                            ap_lst[i][4] = str(int(ap_lst[i][4]) + 1)
-
-                            ac_log.append(f"2Step 1: AC REQUIRES {ap_lst[i][1]} TO CHANGE CHANNEL TO "
-                                          f"{ap_lst[i][4]}")
-                else:
-                    print('no change')
-
-        # Step 2: Connect each CLIENT to the best AP possible.
-        copy_of_ap_lst = copy.deepcopy(ap_lst)
-
-        for client in client_lst:
-            to_remove_set = set()
-            for i in range(0, len(ap_lst) - 1):
-                for j in range(i + 1, len(ap_lst)):
-                    # Evaluate Wi-Fi
-                    if int(ap_lst[i][7][-1]) > int(ap_lst[j][7][-1]):
-                        to_remove_set.add(tuple(ap_lst[j]))
-                    elif int(ap_lst[i][7][-1]) == int(ap_lst[j][7][-1]):
-                        # Evaluate Roaming Standards
-                        client_standard = [client[6], client[7], client[8]]
-                        if [ap_lst[i][8], ap_lst[i][9], ap_lst[i][10]] == [ap_lst[j][8], ap_lst[j][9], ap_lst[j][10]]:
-                            if ap_lst[i][5] > ap_lst[j][5]:
-                                to_remove_set.add(tuple(ap_lst[j]))
-                            elif ap_lst[i][5] == ap_lst[j][5]:
-                                # Evaluate Frequency
-                                i_frequency_lst = [float(element) for element in ap_lst[i][6].split('/')]
-                                j_frequency_lst = [float(element) for element in ap_lst[j][6].split('/')]
-                                if max(i_frequency_lst) > max(j_frequency_lst):
-                                    to_remove_set.add(tuple(ap_lst[j]))
-                                elif max(i_frequency_lst) == max(j_frequency_lst):
-                                    # Evaluate Channel
-                                    if ap_lst[i][4] > ap_lst[j][4]:
-                                        to_remove_set.add(tuple(ap_lst[j]))
-                                    elif ap_lst[i][4] < ap_lst[j][4]:
-                                        to_remove_set.add(tuple(ap_lst[j]))
-                                else:
-                                    to_remove_set.add(tuple(ap_lst[i]))
-                            else:
-                                to_remove_set.add(tuple(ap_lst[j]))
-                        if client_standard == [ap_lst[i][8], ap_lst[i][9], ap_lst[i][10]]:
-                            to_remove_set.add(tuple(ap_lst[j]))
-                        elif client_standard == [ap_lst[j][8], ap_lst[j][9], ap_lst[j][10]]:
-                            to_remove_set.add(tuple(ap_lst[i]))
-                        else:
-                            # Evaluate if 802.11r is true.
-                            if ap_lst[i][10] == 'true' and ap_lst[j][10] == 'false':
-                                to_remove_set.add(tuple(ap_lst[j]))
-                            elif ap_lst[i][10] == 'false' and ap_lst[j][10] == 'true':
-                                to_remove_set.add(tuple(ap_lst[i]))
-                    else:
-                        to_remove_set.add(tuple(ap_lst[i]))
-            final_lst = [element for element in ap_lst if tuple(element) not in to_remove_set]
-            for ap in ap_lst:
-                if ap[1] == final_lst[0][1]:
-                    ap.append(client[1])
-            client_log.append("Step 2: CLIENT CONNECT TO " + final_lst[0][1] + " WITH SIGNAL STRENGTH " +
-                             str(self.calculate_rssi(client[2], client[3], final_lst[0][2], final_lst[0][3],
-                             final_lst[0][6], final_lst[0][5])))
-            ap_log.append(f"STEP 2: {client[1]} CONNECT LOCATION {' '.join(client[2:9])}")
-
-            print(ap_lst)
-            print(client_log)
-            print(ap_log)
 
         self.field_lst = field_lst
         self.ap_lst = ap_lst
@@ -130,38 +51,186 @@ class NetworkHandler:
         self.ap_log = ap_log
         self.ac_log = ac_log
         self.client_log = client_log
+        self.move_to_next = False
+        self.n = 1
 
-    # Calculate RSSI -> Strength of a signal received by a device from a router/phone.
-    # Measured from 0db -> -120db.
+    def modify_channels(self):
+        pref_channels = [1, 6, 11]
+
+        # Note: Multiple APs can have the same channel, as long as they do not overlap.
+        for i in range(0, len(self.ap_lst) - 1):
+            for j in range(i + 1, len(self.ap_lst)):
+                # Calculate the distance between first AP and the next.
+                distance = self.calculate_distance(self.ap_lst[j][2], self.ap_lst[j][3], self.ap_lst[i][2], self.ap_lst[i][3])
+                # If adding the coverage radii of both APs is > distance, there is overlap so change the channel.
+                if distance < (int(self.ap_lst[i][11]) + int(self.ap_lst[j][11])):
+                    # Check if the channels are the same.
+                    if self.ap_lst[i][4] == self.ap_lst[j][4]:
+                        # Change the first AP's channel to the highest possible channel in pref_channels.
+                        if len(pref_channels) > 0:
+                            self.ap_lst[i][4] = str(max(pref_channels))
+                            print(self.ap_lst[i][4])
+                            self.ac_log.append(f"1Step 1: AC REQUIRES {self.ap_lst[i][1]} TO CHANGE CHANNEL TO "
+                                          f"{max(pref_channels)}")
+                            pref_channels.remove(int(self.ap_lst[i][4]))
+                            print(pref_channels)
+                        else:
+                            self.ap_lst[i][4] = str(int(self.ap_lst[i][4]) + 1)
+                            self.ac_log.append(f"2Step 1: AC REQUIRES {self.ap_lst[i][1]} TO CHANGE CHANNEL TO "
+                                          f"{self.ap_lst[i][4]}")
+                    else:
+                        print('alsdfjk')
+                else:
+                    print('no change')
+        print('what', self.ac_log)
+
+    def find_best_ap(self):
+        # Step 2: Connect each CLIENT to the best AP possible.
+        for client in self.client_lst:
+            to_remove_set = set()
+            for i in range(0, len(self.ap_lst) - 1):
+                for j in range(i + 1, len(self.ap_lst)):
+                    # Evaluate Wi-Fi
+                    if int(self.ap_lst[i][7][-1]) > int(self.ap_lst[j][7][-1]):
+                        to_remove_set.add(tuple(self.ap_lst[j]))
+                    elif int(self.ap_lst[i][7][-1]) == int(self.ap_lst[j][7][-1]):
+                        # Evaluate Roaming Standards
+                        client_standard = [client[6], client[7], client[8]]
+                        i_ap_standard = [self.ap_lst[i][8], self.ap_lst[i][9], self.ap_lst[i][10]]
+                        j_ap_standard = [self.ap_lst[j][8], self.ap_lst[j][9], self.ap_lst[j][10]]
+
+                        if i_ap_standard == j_ap_standard:
+                            # Evaluate Power
+                            if self.ap_lst[i][5] > self.ap_lst[j][5]:
+                                to_remove_set.add(tuple(self.ap_lst[j]))
+                            elif self.ap_lst[i][5] == self.ap_lst[j][5]:
+                                # Evaluate Frequency
+                                i_frequency_lst = [float(element) for element in self.ap_lst[i][6].split('/')]
+                                j_frequency_lst = [float(element) for element in self.ap_lst[j][6].split('/')]
+                                if max(i_frequency_lst) > max(j_frequency_lst):
+                                    to_remove_set.add(tuple(self.ap_lst[j]))
+                                elif max(i_frequency_lst) == max(j_frequency_lst):
+                                    # Evaluate Channel
+                                    if self.ap_lst[i][4] > self.ap_lst[j][4]:
+                                        to_remove_set.add(tuple(self.ap_lst[j]))
+                                    elif self.ap_lst[i][4] < self.ap_lst[j][4]:
+                                        to_remove_set.add(tuple(self.ap_lst[j]))
+                                        # If all other conditions are met/tied with each other,
+                                        # calculate which has the stronger signal strength w/ the AP.
+                                    else:
+                                        i_rssi = self.calculate_rssi(self.ap_lst[i][2], self.ap_lst[i][3], client[2],
+                                                                     client[3], self.ap_lst[i][6], self.ap_lst[j][5])
+                                        j_rssi = self.calculate_rssi(self.ap_lst[j][2], self.ap_lst[j][3], client[2],
+                                                                     client[3], self.ap_lst[j][6], self.ap_lst[j][5])
+                                        if i_rssi < j_rssi:
+                                            to_remove_set.add(tuple(self.ap_lst[j]))
+                                        else:
+                                            to_remove_set.add(tuple(self.ap_lst[i]))
+                                else:
+                                    to_remove_set.add(tuple(self.ap_lst[i]))
+                            else:
+                                to_remove_set.add(tuple(self.ap_lst[j]))
+                        elif client_standard == i_ap_standard:
+                            to_remove_set.add(tuple(self.ap_lst[j]))
+                        elif client_standard == j_ap_standard:
+                            to_remove_set.add(tuple(self.ap_lst[i]))
+                        # Account for the same standards.
+                        elif client_standard.count('true') == i_ap_standard.count('true'):
+                            to_remove_set.add(tuple(self.ap_lst[j]))
+                        elif client_standard.count('true') == j_ap_standard.count('true'):
+                            to_remove_set.add(tuple(self.ap_lst[i]))
+                        else:
+                            # Evaluate if 802.11r is true.
+                            if i_ap_standard[2] == 'true' and j_ap_standard[2] == 'false':
+                                to_remove_set.add(tuple(self.ap_lst[j]))
+                            elif i_ap_standard[2] == 'false' and i_ap_standard[2] == 'true':
+                                to_remove_set.add(tuple(self.ap_lst[i]))
+                    else:
+                        to_remove_set.add(tuple(self.ap_lst[i]))
+
+            # compatible_ap contains the AP that is the best match for the current CLIENT.
+            compatible_ap = [element for element in self.ap_lst if tuple(element) not in to_remove_set]
+            # If AP reaches its maximum device limit, display the denied message.
+            if len(compatible_ap[0]) - 13 >= int(compatible_ap[0][12]):
+                self.client_log.append(f"Step {self.n}: CLIENT ROAM DENIED")
+                self.ap_log.append(f"Step {self.n}: {client[1]} TRIED {compatible_ap[0][1]} BUT WAS DENIED")
+            else:
+                self.n += 1
+                for ap in self.ap_lst:
+                    if ap[1] == compatible_ap[0][1]:
+                        ap.append(client[1])
+                # Log Roam: Fast roam if the new AP supports 802.11r
+                if compatible_ap[0][10] == 'true':
+                    self.ap_log.append(f"STEP {self.n}: {client[1]} FAST ROAM TO {compatible_ap[0][1]}")
+                else:
+                    self.ap_log.append(f"STEP {self.n}: {client[1]} ROAM TO {compatible_ap[0][1]}")
+                # Log Connection
+                self.client_log.append("Step " + str(self.n) + ": " + str(client[1]) + " CONNECT TO " + compatible_ap[0][1] + " WITH SIGNAL STRENGTH " +
+                                 str(self.calculate_rssi(client[2], client[3], compatible_ap[0][2], compatible_ap[0][3],
+                                 compatible_ap[0][6], compatible_ap[0][5])))
+                self.ap_log.append(f"STEP {self.n}: {client[1]} CONNECT LOCATION {' '.join(client[2:9])}")
+
+        if self.move_to_next:
+            for client in self.client_lst:
+                # Get the AP that the CLIENT is currently connected to.
+                for ap in self.ap_lst:
+                    if client[1] in ap:
+                        print('what', self.move_lst)
+                        if self.calculate_distance(client[2], client[3], ap[2], ap[3]) < self.calculate_distance(self.move_lst[0][2], self.move_lst[0][3], ap[2], ap[3]):
+                             self.n += 1
+                             self.client_log.append("Step " + str(self.n) + ": CLIENT DISCONNECT FROM " + str(ap[1]) +
+                                                    " SIGNAL STRENGTH " + str(self.calculate_rssi(client[2], client[3], ap[2], ap[3], ap[6], ap[5])))
+
+        print(self.client_log)
+        print(self.ap_log)
+        print(self.ap_lst)
+
     def when_to_roam(self):
         # Evaluate APs based on signal strength.
         for client in self.client_lst:
             # Check if the names of CLIENT and MOVE match.
             if client[1] == self.move_lst[0][1]:
                 for ap in self.ap_lst:
-                    rssi = self.calculate_rssi(self.move_lst[0][2], self.move_lst[0][3], ap[2], ap[3], ap[6], ap[5])
-                    print(rssi)
-                    # Account for the optional RSSI in APs.
-                    if len(ap) != 14:
-                        # If minimum RSSI of MOVE and AP >= CLIENT'S minimum RSSI...
-                        if rssi >= -(int(client[9])):
-                            self.ap_lst.remove(ap)
-                    else:
-                        # If minimum RSSI of MOVE and AP >= CLIENT or AP's minimum RSSI...
-                        if rssi >= -(int(client[9])) or rssi >= -(int(ap[13])):
-                            self.ap_lst.remove(ap)
+                    if client[1] in ap:
+                        # Calculate RSSI for AP and MOVE.
+                        rssi = self.calculate_rssi(self.move_lst[0][2], self.move_lst[0][3], ap[2], ap[3], ap[6], ap[5])
+                        # Account for the optional RSSI in APs.
+                        if ap[13] == ' ':
+                            print('huh')
+                            # If minimum RSSI of MOVE and AP <= CLIENT'S minimum RSSI...
+                            if rssi <= -(int(client[9])):
+                                # Remove the AP that MOVE cannot connect to.
+                                self.ap_lst.remove(ap)
+                                self.move_to_next = True
+                        else:
+                            # If minimum RSSI of MOVE and AP >= CLIENT or AP's minimum RSSI...
+                            if rssi <= -(int(client[9])) or rssi <= -(int(ap[13])):
+                                # Remove the AP that MOVE cannot connect to.
+                                self.ap_lst.remove(ap)
+                                self.move_to_next = True
+            else:
+                # Remove CLIENT if it is not the CLIENT specified in MOVE.
+                self.client_lst.remove(client)
+
+    # Disconnect only when the client is out of range of the connected AP after move.
+    # Log the previous location.
 
     def calculate_rssi(self, coord_1_x, coord_1_y, coord_2_x, coord_2_y, frequency, ap_power):
-        distance = sqrt((int(coord_2_x) - int(coord_1_x)) ** 2 +
-                        (int(coord_2_y) - int(coord_1_y)) ** 2)
+        distance = self.calculate_distance(coord_1_x, coord_1_y, coord_2_x, coord_2_y)
         frequency_lst = [float(element) * 1000 for element in frequency.split('/')]
         max_frequency = max(frequency_lst)
-        rssi = int(ap_power) - (20 * log10(distance)) - (20 * log10(max_frequency)) - 32.44
-        return rssi
+        return int(ap_power) - (20 * log10(distance)) - (20 * log10(max_frequency)) - 32.44
 
+    def calculate_distance(self, coord_1_x, coord_1_y, coord_2_x, coord_2_y):
+        return sqrt((int(coord_2_x) - int(coord_1_x)) ** 2 +
+                    (int(coord_2_y) - int(coord_1_y)) ** 2)
     def __call__(self, *args, **kwargs):
         pass
 
 o = NetworkHandler('example.txt')
-#print(o)
+o.modify_channels()
+o.find_best_ap()
+o.when_to_roam()
+o.find_best_ap()
+
 

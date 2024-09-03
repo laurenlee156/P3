@@ -155,6 +155,10 @@ class TestNetworkHandler(unittest.TestCase):
         nh_object1.find_best_ap()
         nh_object1.when_to_roam()
         nh_object1.find_best_ap()
+        nh_object1.__call__('ap')
+        nh_object1.__call__('client')
+        nh_object1.__call__('ac')
+
         with open('ap.pkl', 'rb') as file:
             ap_data = pickle.load(file)
         self.assertEqual(nh_object1.ap_log, ap_data)
@@ -172,6 +176,10 @@ class TestNetworkHandler(unittest.TestCase):
         nh_object2.find_best_ap()
         nh_object2.when_to_roam()
         nh_object2.find_best_ap()
+        nh_object2.__call__('ap')
+        nh_object2.__call__('client')
+        nh_object2.__call__('ac')
+
         with open('ap.pkl', 'rb') as file:
             ap_data = pickle.load(file)
         self.assertEqual(nh_object2.ap_log, ap_data)
@@ -189,6 +197,10 @@ class TestNetworkHandler(unittest.TestCase):
         nh_object3.single_ap()
         nh_object3.when_to_roam()
         nh_object3.single_ap()
+        nh_object3.__call__('ap')
+        nh_object3.__call__('client')
+        nh_object3.__call__('ac')
+
         with open('ap.pkl', 'rb') as file:
             ap_data = pickle.load(file)
         self.assertEqual(nh_object3.ap_log, ap_data)
@@ -199,7 +211,6 @@ class TestNetworkHandler(unittest.TestCase):
 
         with open('ac.pkl', 'rb') as file:
             ac_data = pickle.load(file)
-        print('data', ac_data)
         self.assertEqual(nh_object3.ac_log, ac_data)
 
 

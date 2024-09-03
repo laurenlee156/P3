@@ -1,21 +1,19 @@
-AP AP1 0 0 6 20 2.4/5 WiFi7 true true true 50 10 75
+AP AP1 0 0 6 20 2.4/5 WiFi8 true true true 50 10 75
 AP AP2 100 100 6 20 2.4 WiFi6 false true false 50 60
 AP AP3 30 50 6 20 5 WiFi8 false true false 60 60
-AP AP4 40 50 6 20 5 WiFi6 false true false 40 60
-AP AP5 30 60 6 20 5 WiFi7 false true false 55 60
-CLIENT Client1 10 10 WiFi6 2.4/5 true true true 73
+AP AP4 40 50 6 20 5 WiFi6 true true false 40 60
+AP AP5 30 60 6 20 5 WiFi7 false true true 55 60
+CLIENT Client1 10 10 WiFi6 2.4/5 false true false 73
+CLIENT Client2 5 5 WiFi7 5 true true true 60
 MOVE Client1 10 9
 
+AP AP1 0 0 6 20 2.4 WiFi7 true true true 50 10 75
+AP AP2 100 100 6 20 2.4 WiFi6 false true false 50 60
+CLIENT Client1 10 10 WiFi6 2.4 true true true 73
+MOVE Client1 60 60
 
-AP AP1 0 0 6 20 2.4/5 WiFi7 true true true 50 10 75
-AP AP2 40 50 6 20 5 WiFi7 false false false 40 60
-AP AP3 70 70 6 20 5 WiFi7 false false false 40 60
-CLIENT Client1 10 10 WiFi6 2.4/5 true true true 73
-CLIENT Client2 5 5 WiFi6 2.4/5 false true false 60
+AP AP1 0 0 6 20 2.4 WiFi7 true true true 10 10 75
+CLIENT Client1 10 10 WiFi6 2.4 true true true 73
+CLIENT Client2 5 5 WiFi7 5 true true true 60
 
-AP AP1 0 0 6 20 2.4/5 WiFi7 true true true 50 10 2
-AP AP2 40 50 6 20 5 WiFi7 false false false 40 60
-AP AP3 40 30 6 20 5 WiFi7 false false false 40 60
-CLIENT Client1 10 10 WiFi6 2.4/5 true true true 73
-CLIENT Client2 5 5 WiFi6 2.4/5 false true false 60
-MOVE Client1 10 9
+MOVE Client1 10 20
